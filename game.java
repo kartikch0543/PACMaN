@@ -70,7 +70,7 @@ public class game extends JPanel implements ActionListener, KeyListener {
         "XXXX XXXX XXXX XXXX",
         "OOOX X       X XOOO",
         "XXXX X XXrXX X XXXX",
-        "O       bpo       O",
+        "X       bpo       X",
         "XXXX X XXXXX X XXXX",
         "OOOX X       X XOOO",
         "XXXX X XXXXX X XXXX",
@@ -97,7 +97,7 @@ public class game extends JPanel implements ActionListener, KeyListener {
 
     game() {
         setPreferredSize(new Dimension(boardWidth, boardHeight));
-        setBackground(new Color(10, 10, 50)); // Dark navy background
+        setBackground(new Color(20, 10, 40)); // Dark purple/navy
         addKeyListener(this);
         setFocusable(true);
 
@@ -148,19 +148,38 @@ public class game extends JPanel implements ActionListener, KeyListener {
     }
 
     public void draw(Graphics g) {
+        // Background gradient overlay (fake)
+        g.setColor(new Color(40, 10, 60, 80)); // Deep overlay
+        g.fillRect(0, 0, boardWidth, boardHeight);
+
+        for (Block wall : walls)
+            g.drawImage(wall.image, wall.x, wall.y, wall.width, wall.height, null);
+
+        g.setColor(new Color(255, 20, 147)); // Neon pink
+        for (Block food : foods)
+            g.fillOval(food.x, food.y, food.width, food.height);
+
+        for (Block ghost : ghosts)
+            g.drawImage(ghost.image, ghost.x, ghost.y, ghost.width, ghost.height, null);
+
         g.drawImage(pacman.image, pacman.x, pacman.y, pacman.width, pacman.height, null);
-        for (Block ghost : ghosts) g.drawImage(ghost.image, ghost.x, ghost.y, ghost.width, ghost.height, null);
-        for (Block wall : walls) g.drawImage(wall.image, wall.x, wall.y, wall.width, wall.height, null);
 
-        g.setColor(Color.CYAN); // Cyan food color
-        for (Block food : foods) g.fillOval(food.x, food.y, food.width, food.height); // Circular food
+        // Shadow text
+        g.setFont(new Font("SansSerif", Font.BOLD, 20));
+        g.setColor(Color.BLACK);
+        g.drawString("❤️ x " + lives + "    ⭐ Score: " + score, tileSize + 2, tileSize - 4);
 
-        g.setColor(new Color(255, 215, 0)); // Golden yellow text
-        g.setFont(new Font("Courier New", Font.BOLD, 18));
-        if (gameOver)
-            g.drawString("Game Over! Final Score: " + score, tileSize, tileSize);
-        else
-            g.drawString("Health: " + lives + "   Score: " + score, tileSize, tileSize);
+        // Main text
+        g.setColor(new Color(255, 255, 160)); // Light yellow
+        g.drawString("❤️ x " + lives + "    ⭐ Score: " + score, tileSize, tileSize - 6);
+
+        if (gameOver) {
+            g.setFont(new Font("SansSerif", Font.BOLD, 28));
+            g.setColor(Color.BLACK);
+            g.drawString("💀 Game Over! Final Score: " + score, tileSize + 2, tileSize * 10 + 2);
+            g.setColor(new Color(255, 80, 80));
+            g.drawString("💀 Game Over! Final Score: " + score, tileSize, tileSize * 10);
+        }
     }
 
     public void move() {
@@ -206,9 +225,10 @@ public class game extends JPanel implements ActionListener, KeyListener {
             if (collision(pacman, food)) {
                 eaten = food;
                 score += 10;
+                break;
             }
         }
-        foods.remove(eaten);
+        if (eaten != null) foods.remove(eaten);
 
         if (foods.isEmpty()) {
             loadMap();
