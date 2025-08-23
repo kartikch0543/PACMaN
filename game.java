@@ -3,6 +3,7 @@ import java.awt.event.*;
 import java.util.HashSet;
 import java.util.Random;
 import javax.swing.*;
+import java.util.ArrayList;
 
 public class game extends JPanel implements ActionListener, KeyListener {
     class Block {
@@ -11,6 +12,8 @@ public class game extends JPanel implements ActionListener, KeyListener {
         int startX, startY;
         char direction = 'U';
         int velocityX = 0, velocityY = 0;
+        int stepsSinceLastTurn = 0;
+        final int turnCooldown = 10;
 
         Block(Image image, int x, int y, int width, int height) {
             this.image = image;
@@ -50,6 +53,10 @@ public class game extends JPanel implements ActionListener, KeyListener {
         void reset() {
             this.x = this.startX;
             this.y = this.startY;
+            velocityX = 0;
+            velocityY = 0;
+            direction = 'U';
+            stepsSinceLastTurn = 0;
         }
     }
 
@@ -60,8 +67,9 @@ public class game extends JPanel implements ActionListener, KeyListener {
     private Image wallImage, blueGhostImage, orangeGhostImage, pinkGhostImage, redGhostImage;
     private Image pacmanUpImage, pacmanDownImage, pacmanLeftImage, pacmanRightImage;
 
-    private String[] tileMap = {
-        "XXXXXXXXXXXXXXXXXXX",
+    private String[][] tileMaps = {
+        {   // Level 1
+         "XXXXXXXXXXXXXXXXXXX",
         "X        X        X",
         "X XX XXX X XXX XX X",
         "X                 X",
@@ -82,7 +90,56 @@ public class game extends JPanel implements ActionListener, KeyListener {
         "X XXXXXX X XXXXXX X",
         "X                 X",
         "XXXXXXXXXXXXXXXXXXX"
+    },
+        {   // Level 2
+            "XXXXXXXXXXXXXXXXXXX",
+            "X   o     X     p X",
+            "X XX XXbX X XrX XX",
+            "X    X        X   X",
+            "X XXXX XXXXX XX XXX",
+            "X    X    P    X  X",
+            "XX XX XXXXXX XX XX",
+            "XOOX X   X   X XOOX",
+            "XX X XX XXX XX X XX",
+            "X                 X",
+            "XX X XXXXXXXX X XXX",
+            "XOOX     X     XOOX",
+            "XX XX XXXXXXX XX XX",
+            "X       X         X",
+            "X XX XXX X XXX XX X",
+            "X X     X X     X X",
+            "XX X XXXXX X XXX XX",
+            "X    X   X   X    X",
+            "X XXXXXX X XXXXXX X",
+            "X                 X",
+            "XXXXXXXXXXXXXXXXXXX"
+        },
+        {   // Level 3
+            "XXXXXXXXXXXXXXXXXXX",
+            "X    r     b      X",
+            "X XXX XXXXXXXX XX X",
+            "X                 X",
+            "XX XXXX XXX XXXX XX",
+            "X    o     P    p X",
+            "XX XXXX XXX XXXX XX",
+            "X                 X",
+            "X XXXXX XX XX XXXXX",
+            "X                 X",
+            "X XXXXX XX XX XXXXX",
+            "X                 X",
+            "XX XXXX XXX XXXX XX",
+            "X    X        X   X",
+            "X XX XXX XX XXX XX",
+            "X X             X X",
+            "XX XXXX XXX XXXX XX",
+            "X                 X",
+            "X XXXXX XXXXXXX XXX",
+            "X                 X",
+            "XXXXXXXXXXXXXXXXXXX"
+        }
     };
+
+    private int currentLevel = 0;
 
     HashSet<Block> walls = new HashSet<>();
     HashSet<Block> foods = new HashSet<>();
@@ -97,35 +154,37 @@ public class game extends JPanel implements ActionListener, KeyListener {
 
     game() {
         setPreferredSize(new Dimension(boardWidth, boardHeight));
-        setBackground(new Color(20, 10, 40)); // Dark purple/navy
+        setBackground(new Color(10, 10, 20)); // Dark background
         addKeyListener(this);
         setFocusable(true);
 
-        wallImage = new ImageIcon(getClass().getResource("./wall.png")).getImage();
-        blueGhostImage = new ImageIcon(getClass().getResource("./blueGhost.png")).getImage();
-        orangeGhostImage = new ImageIcon(getClass().getResource("./orangeGhost.png")).getImage();
-        pinkGhostImage = new ImageIcon(getClass().getResource("./pinkGhost.png")).getImage();
-        redGhostImage = new ImageIcon(getClass().getResource("./redGhost.png")).getImage();
-        pacmanUpImage = new ImageIcon(getClass().getResource("./pacmanUp.png")).getImage();
-        pacmanDownImage = new ImageIcon(getClass().getResource("./pacmanDown.png")).getImage();
-        pacmanLeftImage = new ImageIcon(getClass().getResource("./pacmanLeft.png")).getImage();
-        pacmanRightImage = new ImageIcon(getClass().getResource("./pacmanRight.png")).getImage();
+        wallImage = new ImageIcon(getClass().getResource("wall.png")).getImage();
+        blueGhostImage = new ImageIcon(getClass().getResource("blueGhost.png")).getImage();
+        orangeGhostImage = new ImageIcon(getClass().getResource("orangeGhost.png")).getImage();
+        pinkGhostImage = new ImageIcon(getClass().getResource("pinkGhost.png")).getImage();
+        redGhostImage = new ImageIcon(getClass().getResource("redGhost.png")).getImage();
+        pacmanUpImage = new ImageIcon(getClass().getResource("pacmanUp.png")).getImage();
+        pacmanDownImage = new ImageIcon(getClass().getResource("pacmanDown.png")).getImage();
+        pacmanLeftImage = new ImageIcon(getClass().getResource("pacmanLeft.png")).getImage();
+        pacmanRightImage = new ImageIcon(getClass().getResource("pacmanRight.png")).getImage();
 
         loadMap();
         for (Block ghost : ghosts) {
             ghost.updateDirection(directions[random.nextInt(4)]);
         }
-
-        gameLoop = new Timer(50, this); // 20 FPS
+        gameLoop = new Timer(50, this);
         gameLoop.start();
     }
 
     public void loadMap() {
-        walls.clear(); foods.clear(); ghosts.clear();
+        walls.clear();
+        foods.clear();
+        ghosts.clear();
+        pacman = null;
 
         for (int r = 0; r < rowCount; r++) {
             for (int c = 0; c < columnCount; c++) {
-                char ch = tileMap[r].charAt(c);
+                char ch = tileMaps[currentLevel][r].charAt(c);
                 int x = c * tileSize;
                 int y = r * tileSize;
 
@@ -140,6 +199,11 @@ public class game extends JPanel implements ActionListener, KeyListener {
                 }
             }
         }
+        if (pacman != null) {
+            pacman.velocityX = 0;
+            pacman.velocityY = 0;
+            pacman.direction = 'U';
+        }
     }
 
     public void paintComponent(Graphics g) {
@@ -148,41 +212,38 @@ public class game extends JPanel implements ActionListener, KeyListener {
     }
 
     public void draw(Graphics g) {
-        // Background gradient overlay (fake)
-        g.setColor(new Color(40, 10, 60, 80)); // Deep overlay
+        g.setColor(new Color(30, 10, 50, 80));
         g.fillRect(0, 0, boardWidth, boardHeight);
 
         for (Block wall : walls)
             g.drawImage(wall.image, wall.x, wall.y, wall.width, wall.height, null);
 
-        g.setColor(new Color(255, 20, 147)); // Neon pink
+        g.setColor(new Color(0, 255, 200));
         for (Block food : foods)
             g.fillOval(food.x, food.y, food.width, food.height);
 
         for (Block ghost : ghosts)
             g.drawImage(ghost.image, ghost.x, ghost.y, ghost.width, ghost.height, null);
 
-        g.drawImage(pacman.image, pacman.x, pacman.y, pacman.width, pacman.height, null);
+        if (pacman != null)
+            g.drawImage(pacman.image, pacman.x, pacman.y, pacman.width, pacman.height, null);
 
-        // Shadow text
         g.setFont(new Font("SansSerif", Font.BOLD, 20));
-        g.setColor(Color.BLACK);
-        g.drawString("❤️ x " + lives + "    ⭐ Score: " + score, tileSize + 2, tileSize - 4);
-
-        // Main text
-        g.setColor(new Color(255, 255, 160)); // Light yellow
+        g.setColor(new Color(255, 255, 120));
         g.drawString("❤️ x " + lives + "    ⭐ Score: " + score, tileSize, tileSize - 6);
+        g.setColor(new Color(0, 255, 100));
+        g.drawString("Level: " + (currentLevel + 1), tileSize * 13, tileSize - 6);
 
         if (gameOver) {
             g.setFont(new Font("SansSerif", Font.BOLD, 28));
-            g.setColor(Color.BLACK);
-            g.drawString("💀 Game Over! Final Score: " + score, tileSize + 2, tileSize * 10 + 2);
-            g.setColor(new Color(255, 80, 80));
+            g.setColor(Color.RED);
             g.drawString("💀 Game Over! Final Score: " + score, tileSize, tileSize * 10);
         }
     }
 
     public void move() {
+        if (pacman == null) return;
+
         pacman.x += pacman.velocityX;
         pacman.y += pacman.velocityY;
 
@@ -204,18 +265,51 @@ public class game extends JPanel implements ActionListener, KeyListener {
                 resetPositions();
             }
 
-            if (ghost.y == tileSize * 9 && ghost.direction != 'U' && ghost.direction != 'D') {
-                ghost.updateDirection('U');
+            ghost.stepsSinceLastTurn++;
+
+            boolean atTileCenter = isCenteredOnTile(ghost);
+            boolean shouldTurn = (ghost.stepsSinceLastTurn >= ghost.turnCooldown);
+
+            if (atTileCenter && shouldTurn) {
+                if (random.nextBoolean()) {
+                    ghost.stepsSinceLastTurn = 0;
+                } else {
+                    char[] possibleDirs = getValidDirections(ghost);
+                    if (possibleDirs.length > 0) {
+                        char backward = getOppositeDirection(ghost.direction);
+                        ArrayList<Character> filtered = new ArrayList<>();
+                        for (char d : possibleDirs) {
+                            if (d != backward) filtered.add(d);
+                        }
+                        if (filtered.isEmpty()) filtered = new ArrayList<>();
+                        for (char d : possibleDirs) {
+                            if (!filtered.contains(d)) filtered.add(d);
+                        }
+                        char newDir = filtered.get(random.nextInt(filtered.size()));
+                        ghost.updateDirection(newDir);
+                        ghost.stepsSinceLastTurn = 0;
+                    }
+                }
             }
 
             ghost.x += ghost.velocityX;
             ghost.y += ghost.velocityY;
 
+            boolean hitWall = false;
             for (Block wall : walls) {
-                if (collision(ghost, wall) || ghost.x <= 0 || ghost.x + ghost.width >= boardWidth) {
-                    ghost.x -= ghost.velocityX;
-                    ghost.y -= ghost.velocityY;
-                    ghost.updateDirection(directions[random.nextInt(4)]);
+                if (collision(ghost, wall) || ghost.x < 0 || ghost.x + ghost.width > boardWidth ||
+                    ghost.y < 0 || ghost.y + ghost.height > boardHeight) {
+                    hitWall = true;
+                    break;
+                }
+            }
+            if (hitWall) {
+                ghost.x -= ghost.velocityX;
+                ghost.y -= ghost.velocityY;
+                char[] possibleDirs = getValidDirections(ghost);
+                if (possibleDirs.length > 0) {
+                    ghost.updateDirection(possibleDirs[random.nextInt(possibleDirs.length)]);
+                    ghost.stepsSinceLastTurn = 0;
                 }
             }
         }
@@ -228,9 +322,15 @@ public class game extends JPanel implements ActionListener, KeyListener {
                 break;
             }
         }
-        if (eaten != null) foods.remove(eaten);
+        if (eaten != null)
+            foods.remove(eaten);
 
         if (foods.isEmpty()) {
+            currentLevel++;
+            if (currentLevel >= tileMaps.length) {
+                gameOver = true;
+                return;
+            }
             loadMap();
             resetPositions();
         }
@@ -242,28 +342,78 @@ public class game extends JPanel implements ActionListener, KeyListener {
     }
 
     public void resetPositions() {
-        pacman.reset();
-        pacman.velocityX = 0;
-        pacman.velocityY = 0;
+        if (pacman != null) {
+            pacman.reset();
+            pacman.velocityX = 0;
+            pacman.velocityY = 0;
+        }
         for (Block ghost : ghosts) {
             ghost.reset();
             ghost.updateDirection(directions[random.nextInt(4)]);
         }
     }
 
+    boolean isCenteredOnTile(Block ghost) {
+        return (ghost.x % tileSize == 0) && (ghost.y % tileSize == 0);
+    }
+
+    char[] getValidDirections(Block ghost) {
+        ArrayList<Character> validDirs = new ArrayList<>();
+
+        char[] allDirs = {'U', 'D', 'L', 'R'};
+        for (char dir : allDirs) {
+            ghost.direction = dir;
+            ghost.updateVelocity();
+
+            ghost.x += ghost.velocityX;
+            ghost.y += ghost.velocityY;
+
+            boolean blocked = false;
+            for (Block wall : walls) {
+                if (collision(ghost, wall)) {
+                    blocked = true;
+                    break;
+                }
+            }
+            ghost.x -= ghost.velocityX;
+            ghost.y -= ghost.velocityY;
+
+            if (!blocked)
+                validDirs.add(dir);
+        }
+
+        char[] result = new char[validDirs.size()];
+        for (int i = 0; i < validDirs.size(); i++)
+            result[i] = validDirs.get(i);
+
+        return result;
+    }
+
+    char getOppositeDirection(char dir) {
+        switch (dir) {
+            case 'U': return 'D';
+            case 'D': return 'U';
+            case 'L': return 'R';
+            case 'R': return 'L';
+        }
+        return 'U'; // default fallback
+    }
+
     @Override
     public void actionPerformed(ActionEvent e) {
         move();
         repaint();
-        if (gameOver) gameLoop.stop();
+        if (gameOver)
+            gameLoop.stop();
     }
 
-    @Override public void keyTyped(KeyEvent e) {}
-    @Override public void keyPressed(KeyEvent e) {}
+    @Override
+    public void keyTyped(KeyEvent e) { }
 
     @Override
-    public void keyReleased(KeyEvent e) {
+    public void keyPressed(KeyEvent e) {
         if (gameOver) {
+            currentLevel = 0;
             loadMap();
             resetPositions();
             lives = 3;
@@ -273,16 +423,21 @@ public class game extends JPanel implements ActionListener, KeyListener {
         }
 
         int code = e.getKeyCode();
-        if (code == KeyEvent.VK_UP) pacman.updateDirection('U');
-        else if (code == KeyEvent.VK_DOWN) pacman.updateDirection('D');
-        else if (code == KeyEvent.VK_LEFT) pacman.updateDirection('L');
-        else if (code == KeyEvent.VK_RIGHT) pacman.updateDirection('R');
+        if (pacman != null) {
+            if (code == KeyEvent.VK_UP) pacman.updateDirection('U');
+            else if (code == KeyEvent.VK_DOWN) pacman.updateDirection('D');
+            else if (code == KeyEvent.VK_LEFT) pacman.updateDirection('L');
+            else if (code == KeyEvent.VK_RIGHT) pacman.updateDirection('R');
 
-        switch (pacman.direction) {
-            case 'U': pacman.image = pacmanUpImage; break;
-            case 'D': pacman.image = pacmanDownImage; break;
-            case 'L': pacman.image = pacmanLeftImage; break;
-            case 'R': pacman.image = pacmanRightImage; break;
+            switch (pacman.direction) {
+                case 'U': pacman.image = pacmanUpImage; break;
+                case 'D': pacman.image = pacmanDownImage; break;
+                case 'L': pacman.image = pacmanLeftImage; break;
+                case 'R': pacman.image = pacmanRightImage; break;
+            }
         }
     }
+
+    @Override
+    public void keyReleased(KeyEvent e) { }
 }

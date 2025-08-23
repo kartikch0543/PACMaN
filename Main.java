@@ -1,15 +1,12 @@
 import javax.swing.JFrame;
 
 public class Main {
-    public static void main(String[] args) throws Exception {
-        int rowCount = 21;
-        int columnCount = 19;
-        int tileSize = 32;
+    public static void main(String[] args) {
+        int rowCount = 21, columnCount = 19, tileSize = 32;
         int boardWidth = columnCount * tileSize;
         int boardHeight = rowCount * tileSize;
 
-        JFrame frame = new JFrame("PacMan");
-        // frame.setVisible(true);
+        JFrame frame = new JFrame("PacMan Neo");
         frame.setSize(boardWidth, boardHeight);
         frame.setLocationRelativeTo(null);
         frame.setResizable(false);
@@ -20,6 +17,5 @@ public class Main {
         frame.pack();
         pacmanGame.requestFocus();
         frame.setVisible(true);
-
     }
 }
