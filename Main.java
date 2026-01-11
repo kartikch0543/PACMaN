@@ -6,11 +6,11 @@ public class Main {
         int boardWidth = columnCount * tileSize;
         int boardHeight = rowCount * tileSize;
 
-        JFrame frame = new JFrame("PacMan Neo");
+        JFrame frame = new JFrame("PacMan "); 
         frame.setSize(boardWidth, boardHeight);
-        frame.setLocationRelativeTo(null);
+        frame.setLocationRelativeTo(null);//center
         frame.setResizable(false);
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);//close if press x
 
         game pacmanGame = new game();
         frame.add(pacmanGame);
